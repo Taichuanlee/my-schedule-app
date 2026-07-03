@@ -1,0 +1,3 @@
+openpyxl
+pandas
+st-gsheets-connection
