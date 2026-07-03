@@ -4,6 +4,7 @@ import random
 import copy
 import threading
 import queue
+import urllib.parse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -12,7 +13,7 @@ import io
 # 頁面基本設定
 st.set_page_config(page_title="智能排班系統", page_icon="📅", layout="wide")
 
-st.title("📅 智能排班系統 (雲端安全金鑰版)")
+st.title("📅 智能排班系統 (雲端暗碼安全版)")
 st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後，即可執行背景排班。")
 
 # =========================================================================
@@ -38,9 +39,13 @@ max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）"
 max_special_6A = st.sidebar.slider("偏好 6A 員工特殊班上限（每人）", 0, 5, 1)
 max_attempts = st.sidebar.number_input("五門檻保底最大嘗試次數", min_value=100, value=1000, step=100)
 
+# 【已修正】完美符合直覺的「上、下」半年排序
 st.sidebar.markdown("---")
 st.sidebar.header("📅 排班季度選擇")
-season_option = st.sidebar.selectbox("請選擇排班月份區間：", ["上半年 (Jan - Jun)", "下半年 (Jul - Dec)"])
+season_option = st.sidebar.selectbox(
+    "請選擇排班月份區間：",
+    ["上半年 (Jan - Jun)", "下半年 (Jul - Dec)"]
+)
 
 if "上半年" in season_option:
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
@@ -48,19 +53,18 @@ else:
     months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 # =========================================================================
-# 主畫面：安全金鑰資料串接
+# 主畫面：暗碼安全資料串接
 # =========================================================================
 st.header("🔗 第一步：同步 Google Sheet 偏好資料")
 
 col_url, col_opt = st.columns([2, 1])
 
 with col_url:
-    # 這裡直接抓取你在 Streamlit 後台設定的 Secrets 網址，安全不外洩！
     try:
         default_url = st.secrets["private_gsheets_url"]
     except:
         default_url = ""
-    sheet_url = st.text_input("Google Sheet 網址 (已受金鑰防護，不輸入則預設抓取後台綁定檔案)：", value=default_url)
+    sheet_url = st.text_input("Google Sheet 網址 (已受後台密碼隱藏，不輸入則預設抓取設定檔案)：", value=default_url)
 
 with col_opt:
     group_option = st.selectbox("請選擇目前要處理的年資群組：", ["資深群組 (分頁1)", "中生代群組 (分頁2)", "新進群組 (分頁3)"])
@@ -72,18 +76,22 @@ employees = {}
 
 if st.button("🔄 同步該群組最新資料", type="secondary"):
     if not sheet_url:
-        st.error("❌ 請輸入 Google Sheet 網址或在後台 Secrets 中設定 private_gsheets_url。")
+        st.error("❌ 請先在 Streamlit 後台 Secrets 中設定 private_gsheets_url 網址。")
     else:
         try:
-            # 雲端正式版：正式啟用 Streamlit 內建的安全 GSheets 連接器
-            conn = st.connection("gsheets", type=st.connection.GSheetsConnection)
-            raw_df = conn.read(spreadsheet=sheet_url, worksheet=target_sheet_name, ttl=0)
-            
+            if "docs.google.com/spreadsheets" in sheet_url:
+                base_url = sheet_url.split("/edit")[0]
+                encoded_sheet_name = urllib.parse.quote(target_sheet_name)
+                final_csv_url = f"{base_url}/export?format=csv&sheet={encoded_sheet_name}"
+            else:
+                final_csv_url = sheet_url
+                
+            raw_df = pd.read_csv(final_csv_url)
             raw_df['key'] = raw_df['name'] + '_' + raw_df['ID'].astype(str)
             missing_months = [m for m in months if m not in raw_df.columns]
             
             if missing_months:
-                st.error(f"❌ 同步失敗！找不到欄位：{missing_months}。請檢查季度或分頁。")
+                st.error(f"❌ 同步失敗！目前選擇的是【{season_option}】，但你的 Google Sheet 內找不到欄位：{missing_months}。請檢查 Sheet 欄位名稱或切換季度。")
             else:
                 invalid_pref_records = []
                 pref_df_cleaned = raw_df.set_index('key')[months].copy()
@@ -117,13 +125,13 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
                 st.success(f"✅ 成功同步【{group_option}】！共讀取 {len(temp_employees)} 人。")
                 st.dataframe(raw_df.set_index('key')[months])
         except Exception as e:
-            st.error(f"❌ 讀取失敗！請確認網址正確，且 Streamlit Secrets 已正確綁定 Google Sheet 的存取權限。錯誤: {e}")
+            st.error(f"❌ 讀取失敗！請確認 Google Sheet 的共用權限已開啟為「知道連結的使用者皆可檢視」。錯誤: {e}")
 
 if 'loaded_employees' in st.session_state:
     employees = st.session_state['loaded_employees']
 
 # =========================================================================
-# 核心排班與 Excel 導出邏輯 (完整保留)
+# 核心排班與 Excel 導出邏輯
 # =========================================================================
 def assign_shifts(employees, shift_needs, months):
     final_df = pd.DataFrame(index=employees.keys(), columns=months)
