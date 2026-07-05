@@ -287,8 +287,7 @@ def assign_special_shifts(schedule_df, months, special_needs, max_special_per_em
                     primary_sorted = sorted(primary, key=lambda e: (-scores.get(e, 0), special_count[e], random.random()))
                     chosen = primary_sorted[0]
                 else:
-                    backup = [e for e in candidates if e in sixA_people Image of neural networks and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
-                    if backup: chosen = random.choice(backup)
+                    backup = [e for e in candidates if e in sixA_people and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
                 if chosen: final_df.at[chosen, m] = sp; special_count[chosen] += 1
     return final_df
 
