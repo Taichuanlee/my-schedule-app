@@ -86,8 +86,6 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
             if "docs.google.com/spreadsheets" in active_url:
                 base_url = active_url.split("/edit")[0]
                 
-                # 精準對照：資深(gid=0)=第一個分頁, 中生代=工作表2, 新進=工作表3
-                # 如果其他單位只有一個分頁，會觸發 except 自動抓第一個分頁
                 gid_mapping = {
                     "工作表1": "0",
                     "工作表2": "工作表2",
@@ -103,11 +101,11 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
             else:
                 final_csv_url = active_url
             
-            # 【精準相容防呆】
+            # 【精準相容防呆核心機制】
             try:
                 raw_df = pd.read_csv(final_csv_url)
             except Exception:
-                # 如果抓取工作表2或3失敗（代表別的單位只有一個分頁），自動退回預設的第一個分頁（gid=0）
+                # 如果抓取特定分頁失敗，自動退回預設的第一個分頁（gid=0）
                 fallback_url = f"{active_url.split('/edit')[0]}/export?format=csv&gid=0"
                 raw_df = pd.read_csv(fallback_url)
                 st.warning(f"⚠️ 找不到分頁【{target_sheet_name}】，系統已自動為您切換至該 Google Sheet 的【第一個預設工作表】。")
@@ -152,6 +150,9 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
                 st.dataframe(raw_df.set_index('key')[months])
         except Exception as e:
             st.error(f"❌ 讀取失敗！請確認 Google Sheet 的共用權限已開啟為「知道連結的使用者皆可檢視」。錯誤: {e}")
+
+if 'loaded_employees' in st.session_state:
+    employees = st.session_state['loaded_employees']
 
 # =========================================================================
 # 核心排班與 Excel 導出邏輯
@@ -286,7 +287,7 @@ def assign_special_shifts(schedule_df, months, special_needs, max_special_per_em
                     primary_sorted = sorted(primary, key=lambda e: (-scores.get(e, 0), special_count[e], random.random()))
                     chosen = primary_sorted[0]
                 else:
-                    backup = [e for e in candidates if e in sixA_people and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
+                    backup = [e for e in candidates if e in sixA_people Image of neural networks and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
                     if backup: chosen = random.choice(backup)
                 if chosen: final_df.at[chosen, m] = sp; special_count[chosen] += 1
     return final_df
