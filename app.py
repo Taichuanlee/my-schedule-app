@@ -75,43 +75,42 @@ target_sheet_name = sheet_mapping[group_option]
 employees = {}
 
 if st.button("🔄 同步該群組最新資料", type="secondary"):
-    # 允許使用後台隱密網址
     active_url = sheet_url if sheet_url else default_url
     
     if not active_url:
         st.error("❌ 請輸入 Google Sheet 網址或在後台 Secrets 中設定 private_gsheets_url 網址。")
     else:
         try:
-            # 建立萬用下載網址
+            # =========================================================================
+            # 【一勞永逸終極通用版】自動適應新表、防空行、三層防呆機制
+            # =========================================================================
             if "docs.google.com/spreadsheets" in active_url:
                 base_url = active_url.split("/edit")[0]
-                
-                gid_mapping = {
-                    "工作表1": "0",
-                    "工作表2": "工作表2",
-                    "工作表3": "工作表3"
-                }
-                target_param = gid_mapping.get(target_sheet_name, "0")
-                
-                if target_param == "0":
-                    final_csv_url = f"{base_url}/export?format=csv&gid=0"
-                else:
-                    encoded_sheet_name = urllib.parse.quote(target_param)
-                    final_csv_url = f"{base_url}/export?format=csv&sheet={encoded_sheet_name}"
+                encoded_sheet_name = urllib.parse.quote(target_sheet_name)
+                final_csv_url = f"{base_url}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
             else:
                 final_csv_url = active_url
             
-            # 【精準相容防呆核心機制】
             try:
+                # 讀取 CSV 資料
                 raw_df = pd.read_csv(final_csv_url)
-            except Exception:
-                # 如果抓取特定分頁失敗，自動退回預設的第一個分頁（gid=0）
+                
+                # 【防禦空行】強制濾除 name 或 ID 為空值的「幽靈列」
+                if 'name' in raw_df.columns and 'ID' in raw_df.columns:
+                    raw_df = raw_df.dropna(subset=['name', 'ID'])
+                else:
+                    raise ValueError("欄位名稱不符")
+                    
+            except Exception as e:
+                # 第二層防呆：當上方的精準分頁通道失敗時（例如別人改了分頁名字），自動降級抓第一個分頁
                 fallback_url = f"{active_url.split('/edit')[0]}/export?format=csv&gid=0"
                 raw_df = pd.read_csv(fallback_url)
-                st.warning(f"⚠️ 找不到分頁【{target_sheet_name}】，系統已自動為您切換至該 Google Sheet 的【第一個預設工作表】。")
+                if 'name' in raw_df.columns and 'ID' in raw_df.columns:
+                    raw_df = raw_df.dropna(subset=['name', 'ID'])
+                st.warning(f"⚠️ 讀取分頁【{target_sheet_name}】失敗，系統已自動為您切換至第一個預設工作表。請檢查 Google Sheet 分頁名稱是否真的叫「工作表1/2/3」。")
             
-            # 資料格式整理與欄位檢查
-            raw_df['key'] = raw_df['name'] + '_' + raw_df['ID'].astype(str)
+            # 【關鍵修復】確保資料清理乾淨後，再建立唯一的 key
+            raw_df['key'] = raw_df['name'].astype(str) + '_' + raw_df['ID'].astype(str).str.split('.').str[0]
             missing_months = [m for m in months if m not in raw_df.columns]
             
             if missing_months:
@@ -129,6 +128,7 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
 
                 temp_employees = pref_df_cleaned.T.to_dict('list')
 
+                # 【校對修正】將演算順序修正，確保 A_pref_counts 讀取到正確建立後的 temp_employees
                 A_pref_counts = {i: 0 for i in range(len(months))}
                 for pref in temp_employees.values():
                     for i, v in enumerate(pref):
@@ -288,6 +288,7 @@ def assign_special_shifts(schedule_df, months, special_needs, max_special_per_em
                     chosen = primary_sorted[0]
                 else:
                     backup = [e for e in candidates if e in sixA_people and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
+                    if backup: chosen = random.choice(backup)
                 if chosen: final_df.at[chosen, m] = sp; special_count[chosen] += 1
     return final_df
 
