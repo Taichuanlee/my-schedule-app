@@ -64,7 +64,7 @@ with col_url:
         default_url = st.secrets["private_gsheets_url"]
     except:
         default_url = ""
-    sheet_url = st.text_input("Google Sheet 網址 (已受後台密碼隱藏，不輸入則預設抓取設定檔案)：", value=default_url)
+    sheet_url = st.text_input("Google Sheet 網址 ：", value="")
 
 with col_opt:
     group_option = st.selectbox("請選擇目前要處理的年資群組：", ["資深群組 (分頁1)", "中生代群組 (分頁2)", "新進群組 (分頁3)"])
@@ -75,18 +75,31 @@ target_sheet_name = sheet_mapping[group_option]
 employees = {}
 
 if st.button("🔄 同步該群組最新資料", type="secondary"):
-    if not sheet_url:
-        st.error("❌ 請先在 Streamlit 後台 Secrets 中設定 private_gsheets_url 網址。")
+    # 允許使用後台隱密網址
+    active_url = sheet_url if sheet_url else default_url
+    
+    if not active_url:
+        st.error("❌ 請輸入 Google Sheet 網址或在後台 Secrets 中設定 private_gsheets_url 網址。")
     else:
         try:
-            if "docs.google.com/spreadsheets" in sheet_url:
-                base_url = sheet_url.split("/edit")[0]
+            # 建立萬用下載網址
+            if "docs.google.com/spreadsheets" in active_url:
+                base_url = active_url.split("/edit")[0]
                 encoded_sheet_name = urllib.parse.quote(target_sheet_name)
                 final_csv_url = f"{base_url}/export?format=csv&sheet={encoded_sheet_name}"
             else:
-                final_csv_url = sheet_url
-                
-            raw_df = pd.read_csv(final_csv_url)
+                final_csv_url = active_url
+            
+            # 【核心相容防呆修復】
+            try:
+                raw_df = pd.read_csv(final_csv_url)
+            except Exception:
+                # 找不到特定分頁時，直接下載整份試算表的第一頁
+                fallback_url = f"{active_url.split('/edit')[0]}/export?format=csv"
+                raw_df = pd.read_csv(fallback_url)
+                st.warning(f"⚠️ 找不到分頁【{target_sheet_name}】，系統已自動為您切換至該 Google Sheet 的【第一個預設工作表】。")
+            
+            # 資料格式整理與欄位檢查
             raw_df['key'] = raw_df['name'] + '_' + raw_df['ID'].astype(str)
             missing_months = [m for m in months if m not in raw_df.columns]
             
