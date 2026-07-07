@@ -117,7 +117,14 @@ with st.sidebar.expander("🛠️ 開發者內部測試區", expanded=False):
         random.seed(None) 
         if dev_password != "":
             st.error("❌ 密碼錯誤，維持正常隨機排班")
-            
+   elif dev_password.upper() == "BATISTA":
+        st.success("🔥 野獸出閘！The Animal is here！排班系統進入 Ruthless Aggression 模式 🤼‍♂️")
+        st.balloons()
+        
+    elif dev_password.upper() == "ORTON":
+        st.warning("🐍 RKO Out of Nowhere! (注意：即將隨機洗牌)")
+
+
 # =========================================================================
 # 主畫面：暗碼安全資料串接
 # =========================================================================
