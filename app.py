@@ -10,10 +10,40 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 import io
 
-# 頁面基本設定
-st.set_page_config(page_title="智能排班系統", page_icon="📅", layout="wide")
+# =========================================================================
+# 系統公告留言板（寫死在 Code 裡，留空 "" 則不啟用）
+# =========================================================================
+# 📝 如果要發公告，請在下方引號內打字；如果要關閉，請保持 ANNOUNCEMENT = ""
+ANNOUNCEMENT = """
+📣 **系統維護與排班公告**
+1. 本週已調整「偏好 6A 員工」的特殊班權重分配邏輯。
+2. 若資深群組同步失敗，請檢查 Sheet 頁籤名稱是否遭誤動。
+3. 有任何排班邏輯建議，請隨時通知岱川。
+"""
 
-st.title("📅 智能排班系統 ")
+# 定義彈窗模組
+@st.dialog("📌 系統重要備註與公告")
+def show_announcement_dialog(text):
+    st.markdown(text)
+    if st.button("我知道了，關閉提示", type="primary"):
+        st.rerun()
+
+# 初始化公告檢查狀態
+if "announcement_shown" not in st.session_state:
+    st.session_state["announcement_shown"] = False
+
+# 邏輯：Code 裡有打字，且這次進來還沒顯示過，就立刻跳出
+if ANNOUNCEMENT.strip() and not st.session_state["announcement_shown"]:
+    st.session_state["announcement_shown"] = True
+    show_announcement_dialog(ANNOUNCEMENT)
+
+# =========================================================================
+
+
+# 頁面基本設定
+st.set_page_config(page_title="排班系統", page_icon="📅", layout="wide")
+
+st.title("📅 排班系統 ")
 st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後，即可執行背景排班。")
 
 # =========================================================================
@@ -57,7 +87,7 @@ else:
 # =========================================================================
 st.sidebar.markdown("---")
 with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
-    dev_password = st.text_input("輸入管理員暗碼：", type="password")
+    dev_password = st.text_input("輸入管理員密碼：", type="password")
     
     if dev_password == "117493":  # 這裡設定你的專屬密碼
         st.success("🔓 已啟用開發者模式：排班隨機碼已固定 (Seed=42)")
