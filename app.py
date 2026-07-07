@@ -331,32 +331,64 @@ def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_v
     output = io.BytesIO(); wb.save(output); return output.getvalue()
 
 # =========================================================================
-# 介面控制：執行排班與下載
+# 介面控制：執行排班與下載（真・異步安全線程版）
 # =========================================================================
 st.markdown("---")
 st.header("🚀 第二步：執行智能排班")
+
+# 初始化線程與隊列的狀態
+if "thread_queue" not in st.session_state:
+    st.session_state["thread_queue"] = None
+if "is_running" not in st.session_state:
+    st.session_state["is_running"] = False
 
 if not employees:
     st.info("💡 請先在上方點擊「🔄 同步該群組最新資料」按鈕。")
 else:
     st.write(f"📊 目前準備排班之群組：**{st.session_state.get('current_group', '未指定')}** ｜ 月份區間：**{season_option}**")
     
-    if st.button("🔥 開始一鍵排班（異步安全線程）", type="primary"):
-        with st.spinner("🧠 演算法正在後台隨機保底、分攤特殊班... 請稍候..."):
+    # 狀態 1：如果目前沒有在排班，顯示「開始排班」按鈕
+    if not st.session_state["is_running"]:
+        if st.button("🔥 開始一鍵排班（真．背景異步）", type="primary"):
             res_queue = queue.Queue()
             task_thread = threading.Thread(
                 target=run_scheduling_worker,
                 args=(employees, shift_needs, months, max_attempts, special_needs, max_special_normal, max_special_6A, res_queue)
             )
+            # 啟動背景工人
             task_thread.start()
-            task_thread.join()
             
-            status, result = res_queue.get()
+            # 將 queue 記在 session_state，並標記開始執行，直接 rerun 釋放畫面
+            st.session_state["thread_queue"] = res_queue
+            st.session_state["is_running"] = True
+            st.rerun()
+
+    # 狀態 2：如果背景正在計算，顯示動態動畫，並檢查結果
+    else:
+        st.info("🧠 演算法正在後台隨機保底、分攤特殊班... 請稍候...")
+        st.spinner("背景計算中...")
+        
+        # 嘗試從隊列拿東西，拿不到就代表還沒算完
+        try:
+            res_queue = st.session_state["thread_queue"]
+            # block=False 代表不等待，有東西就拿，沒東西就噴 queue.Empty 異常
+            status, result = res_queue.get(block=False)
+            
+            # 算完了！恢復狀態
+            st.session_state["is_running"] = False
+            st.session_state["thread_queue"] = None
+            
             if status == "SUCCESS":
                 st.session_state['final_result'] = result
                 st.success("🎉 排班順利完成！結果已生成。")
             else:
                 st.error(f"❌ 排班失敗: {result}")
+            st.rerun()
+            
+        except queue.Empty:
+            # 沒算完，利用 st.button 讓使用者可以手動刷新，或者放著等它下一輪觸發
+            if st.button("🔄 檢查最新排班進度"):
+                st.rerun()
 
 if 'final_result' in st.session_state:
     st.markdown("### 📊 本次排班結果預覽")
