@@ -92,52 +92,12 @@ else:
 # 側邊欄：開發者調試區（暗碼保護固定 Seed）
 # =========================================================================
 st.sidebar.markdown("---")
-with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
+with st.sidebar.expander("🛠️ 開發者內部測試區", expanded=False):
     dev_password = st.text_input("輸入管理員密碼：", type="password")
-
-    # 只有當密碼正確時，才執行這裡面的所有東西 👇
-    if dev_password == "117493":  
-        st.success("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
-        random.seed(42)  # 固定隨機碼
-        
-        st.markdown("---")
-        st.markdown("### 🛠️ 管理員上帝視角工具")
-        
-        # 1. 記憶快取清理器
-        if st.button("♻️ 徹底強制清空網頁快取", use_container_width=True):
-            st.session_state.clear()
-            st.success("快取已完全清空！")
-            st.rerun()
-            
-        st.markdown("---")
-        
-        # 2. 開發者功能開關 (可動態注入變數)
-        bypass_max = st.checkbox("🔓 暴力破壞模式：解除特殊班個人上限限制")
-        if bypass_max:
-            max_special_normal = 99
-            max_special_6A = 99
-            st.caption("⚠️ 已將每人特殊班上限調整為 99 進行壓力測試")
-
-        # 3. 效能與進度指標 (若有排班結果才顯示)
-        if 'final_result' in st.session_state:
-            st.markdown("---")
-            st.markdown("📊 **演算法後台指標**")
-            st.metric(label="排班總人數", value=f"{len(employees)} 人")
-            
-            # 展示加權平均總分，用來評估演算法好壞
-            if employees:
-                scores = calculate_weighted_scores(st.session_state['final_result'], employees, months, shift_needs)
-                avg_score = round(sum(scores.values()) / len(scores), 2)
-                st.metric(label="全單位平均加權得分", value=f"{avg_score} 分")
-
-        # 4. JSON 願望清單檢視器
-        if employees:
-            st.markdown("---")
-            with st.container():
-                st.markdown("📋 **目前後台讀取到的真實願望字典 (JSON)**")
-                st.json(employees)
-                
-    # 如果密碼不對，執行下面這裡 👇
+    
+    if dev_password == "117493":  # 這裡設定你的專屬密碼
+        st.success("🔓 已啟用開發者模式：排班隨機碼已固定 (Seed=42)")
+        random.seed(42)  # 鎖死隨機碼
     else:
         # 🔑 關鍵解鎖點：只要密碼不對或留白，立刻恢復真正隨機！
         random.seed(None) 
