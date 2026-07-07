@@ -91,10 +91,12 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
     
     if dev_password == "117493":  # 這裡設定你的專屬密碼
         st.success("🔓 已啟用開發者模式：排班隨機碼已固定 (Seed=42)")
-        random.seed(42)  # 固定 Python 自帶的 random
-        # 如果你有用到 numpy 的隨機，可以加上：np.random.seed(42)
-    elif dev_password != "":
-        st.error("❌ 密碼錯誤，維持正常隨機排班")
+        random.seed(42)  # 鎖死隨機碼
+    else:
+        # 🔑 關鍵解鎖點：只要密碼不對或留白，立刻恢復真正隨機！
+        random.seed(None) 
+        if dev_password != "":
+            st.error("❌ 密碼錯誤，維持正常隨機排班")
 
 # =========================================================================
 # 主畫面：暗碼安全資料串接
