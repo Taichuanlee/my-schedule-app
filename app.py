@@ -21,14 +21,16 @@ import io
 # =========================================================================
 # 📝 如果要發公告，請在下方引號內打字；如果要關閉，請保持 ANNOUNCEMENT = ""
 ANNOUNCEMENT = """
-1. 系統測試中，歡迎隨時測試，然後回報問題。
-2. 畫面美感部分，或是想要修改文字、小地方，都可以提出。
-3. 左下角有一個可以固定輸出結果的選項，密碼是117493。
-3. 有問題請通知岱川。
+* 系統測試中，歡迎隨時測試，然後回報問題。
+* google sheet 網址有預設好了，直接按同步資料就好。
+* 想編輯原始班表在這邊  https://pse.is/9apeg9 
+* 畫面美感部分，或是想要修改文字、小地方，都可以提出。
+* 左下角有一個可以固定輸出結果的選項，密碼是117493。
+* 有問題請通知岱川。
 """
 
 # 定義彈窗模組
-@st.dialog("📌 系統重要備註與公告")
+@st.dialog("📌 系統備註與公告")
 def show_announcement_dialog(text):
     st.markdown(text)
     if st.button("我知道了，關閉提示", type="primary"):
@@ -49,7 +51,7 @@ if ANNOUNCEMENT.strip() and not st.session_state["announcement_shown"]:
 # 頁面基本設定
 st.set_page_config(page_title="排班系統", page_icon="📅", layout="wide")
 
-st.title("📅 排班系統 ")
+st.title("📅 排班系統 (幫我加績效) ")
 st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後，即可執行背景排班。")
 
 # =========================================================================
@@ -70,7 +72,7 @@ need_Z = st.sidebar.slider("Z 班數量 (N 類特殊)", 0, 10, 2)
 special_needs = {"W": need_W, "X": need_X, "Y": need_Y, "Z": need_Z}
 
 st.sidebar.markdown("---")
-st.sidebar.header("🛡️ 個人上限與保底設定")
+st.sidebar.header("🛡️ 個人特殊班上限與保底設定")
 max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）", 1, 5, 2)
 max_special_6A = st.sidebar.slider("偏好 6A 員工特殊班上限（每人）", 0, 5, 1)
 max_attempts = st.sidebar.number_input("五門檻保底最大嘗試次數", min_value=100, value=1000, step=100)
@@ -101,7 +103,7 @@ with st.sidebar.expander("🛠️ 開發者內部測試區", expanded=False):
         random.seed(42)  # 固定隨機碼
         
         st.markdown("---")
-        st.markdown("### 🛠️ 管理員上帝視角工具")
+        st.markdown("### 🛠️ 管理員工具")
         
         # 🗂️ 記憶快取清理器：點擊後清除 session_state 並重新整理
         if st.button("♻️ 徹底強制清空網頁快取", use_container_width=True):
