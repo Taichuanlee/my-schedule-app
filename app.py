@@ -99,16 +99,16 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
 
     # 門檻 1：真正的管理員密碼 🔒
     if dev_password == "117493":  
-        st.toast("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
+        st.success("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
         random.seed(42)  # 固定隨機碼
         
         st.markdown("---")
-        st.markdown("### 🛠️ 管理員上帝視角工具")
+        st.markdown("### 🛠️ 管理員工具")
         
         # 🗂️ 記憶快取清理器（只有 117493 看得到）
         if st.button("♻️ 徹底強制清空網頁快取", use_container_width=True):
             st.session_state.clear()
-            st.toast("快取已完全清空！")
+            st.success("快取已完全清空！")
             st.rerun()
 
     # 門檻 2：摔角彩蛋 A 🤼‍♂️
