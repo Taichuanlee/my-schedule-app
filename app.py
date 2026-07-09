@@ -99,7 +99,7 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
 
     # 門檻 1：真正的管理員密碼 🔒
     if dev_password == "117493":  
-        st.success("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
+        st.toast("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
         random.seed(42)  # 固定隨機碼
         
         st.markdown("---")
