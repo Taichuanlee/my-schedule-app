@@ -108,7 +108,7 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
         # 🗂️ 記憶快取清理器（只有 117493 看得到）
         if st.button("♻️ 徹底強制清空網頁快取", use_container_width=True):
             st.session_state.clear()
-            st.success("快取已完全清空！")
+            st.toast("快取已完全清空！")
             st.rerun()
 
     # 門檻 2：摔角彩蛋 A 🤼‍♂️
