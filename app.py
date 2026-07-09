@@ -103,7 +103,7 @@ st.sidebar.markdown("---")
 with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
     dev_password = st.text_input("輸入管理員密碼：", type="password")
 
-    EGG_KEYWORDS = {"110038", "115061"}
+    EGG_KEYWORDS = {"110038", "115061", "108201"}
     # 門檻 1：真正的管理員密碼 🔒
     if dev_password == "117493":  
         st.success("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
@@ -124,15 +124,15 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
         st.success("🔥 野獸出閘！The Animal is here！排班系統進入 Ruthless Aggression 模式 🤼‍♂️")
         st.balloons()
         
-    # 門檻 3：摔角彩蛋 B 🐍
-    elif dev_password.upper() == "ORTON":
+    elif dev_password.upper() == "PASSWORD":
         random.seed(None) # 彩蛋模式不鎖死 Seed
-        st.warning("🐍 RKO Out of Nowhere! (注意：維持隨機洗牌)")
+        st.warning("🤡你以為打個PASSWORD就真的是密碼嗎？？？")
+        st.toast("要不你試試別的密碼吧！")
 
     elif dev_password.upper() in EGG_KEYWORDS:
         random.seed(None)  # 彩蛋模式不鎖死 Seed
         st.snow()          # ❄️ 內建的下雪功能（st.snow 本身不用也不能傳文字進去喔！）
-        st.success(f"🎉 恭喜你輸入暗號【{dev_password}】，成功發現隱藏彩蛋！")
+        st.success(f"🎉 恭喜你輸入【{dev_password}】，成功發現隱藏彩蛋！")
                 
     # 門檻 4：密碼打錯或留白 👇
     else:
