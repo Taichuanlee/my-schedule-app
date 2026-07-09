@@ -52,6 +52,12 @@ if ANNOUNCEMENT.strip() and not st.session_state["announcement_shown"]:
 st.set_page_config(page_title="排班系統", page_icon="📅", layout="wide")
 
 st.title("📅 排班系統 (幫我加績效) ")
+# =========================================================================
+# 💡 放在這裡！一進網頁最上方就看得到，非常親切
+with st.chat_message("assistant", avatar="👨‍⚕️"):
+    st.write("我是測試機器人")
+# =========================================================================
+
 st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後，即可執行背景排班。")
 
 # =========================================================================
@@ -97,6 +103,7 @@ st.sidebar.markdown("---")
 with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
     dev_password = st.text_input("輸入管理員密碼：", type="password")
 
+    EGG_KEYWORDS = {"110038", "115061"}
     # 門檻 1：真正的管理員密碼 🔒
     if dev_password == "117493":  
         st.success("🔓 已啟用開發者模式：隨機碼已固定 (Seed=42)")
@@ -121,6 +128,11 @@ with st.sidebar.expander("🛠️ 開發者內部調試區", expanded=False):
     elif dev_password.upper() == "ORTON":
         random.seed(None) # 彩蛋模式不鎖死 Seed
         st.warning("🐍 RKO Out of Nowhere! (注意：維持隨機洗牌)")
+
+    elif dev_password.upper() in EGG_KEYWORDS:
+        random.seed(None)  # 彩蛋模式不鎖死 Seed
+        st.snow()          # ❄️ 內建的下雪功能（st.snow 本身不用也不能傳文字進去喔！）
+        st.success(f"🎉 恭喜你輸入暗號【{dev_password}】，成功發現隱藏彩蛋！")
                 
     # 門檻 4：密碼打錯或留白 👇
     else:
