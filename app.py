@@ -521,64 +521,42 @@ def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_v
     return output.getvalue()
 
 # =========================================================================
-# 介面控制：執行排班與下載（真・異步安全線程版）
+# 介面控制：執行排班與下載
 # =========================================================================
 st.markdown("---")
 st.header("🚀 第二步：執行智能排班")
-
-if "thread_queue" not in st.session_state:
-    st.session_state["thread_queue"] = None
-if "is_running" not in st.session_state:
-    st.session_state["is_running"] = False
 
 if not employees:
     st.info("💡 請先在上方點擊「🔄 同步該群組最新資料」按鈕。")
 else:
     st.write(f"📊 目前準備排班之群組：**{st.session_state.get('current_group', '未指定')}** ｜ 月份區間：**{season_option}**")
     
-    if not st.session_state["is_running"]:
-        if st.button("🔥 開始一鍵排班（真．背景異步）", type="primary"):
-            res_queue = queue.Queue()
-            task_thread = threading.Thread(
-                target=run_scheduling_worker,
-                args=(employees, shift_needs, months, max_attempts, special_needs, max_special_normal, max_special_6A, res_queue)
-            )
-            task_thread.start()
+    if st.button("🔥 開始一鍵排班", type="primary"):
+        # 💡 先清空上一次的結果，讓舊表格與下載按鈕瞬間消失
+        if 'final_result' in st.session_state:
+            del st.session_state['final_result']
             
-            st.session_state["thread_queue"] = res_queue
-            st.session_state["is_running"] = True
-            st.rerun()
-
-    else:
-        st.info("🧠 演算法正在後台隨機保底、分攤特殊班... 請稍候...")
-        st.spinner("背景計算中...")
-        
-        try:
-            res_queue = st.session_state["thread_queue"]
-            status, result = res_queue.get(block=False)
-            
-            st.session_state["is_running"] = False
-            st.session_state["thread_queue"] = None
-            
-            if status == "SUCCESS":
-                st.session_state['final_result'] = result
+        with st.spinner("🧠 演算法正在隨機保底、分攤特殊班... 請稍候..."):
+            try:
+                initial_df = assign_shifts(employees, shift_needs, months)
+                match_df = apply_weighted_minimum_match(initial_df, employees, months, shift_needs, max_attempts)
+                final_df = assign_special_shifts(match_df, months, special_needs, max_special_normal, max_special_6A, employees, shift_needs)
+                
+                # 計算完成後再寫入新結果
+                st.session_state['final_result'] = final_df
                 st.success("🎉 排班順利完成！結果已生成。")
-            else:
-                st.error(f"❌ 排班失敗: {result}")
-            st.rerun()
-            
-        except queue.Empty:
-            if st.button("🔄 檢查最新排班進度"):
                 st.rerun()
+            except Exception as e:
+                st.error(f"❌ 排班失敗: {e}")
 
 if 'final_result' in st.session_state:
     st.markdown("### 📊 本次排班結果預覽")
     st.info("""
     **📋 特殊支援班別定義與樣式說明：**
     * **W 班**：**白班**，若有需要需**支援小夜班**（Excel 呈現為：*斜體粗體 A*）
-    * **X 班**：**白班**，若有需要需**支援大夜班**（Excel 呈現為：**底線粗體 A**）
-    * **Y 班**：**小夜班**，若有需要需**支援白班**（Excel 呈現為：**底線粗體 E**）
-    * **Z 班**：**大夜班**，若有需要需**支援白班**（Excel 呈現為：**底線粗體 N**）
+    * **X 班**：**白班**，若有需要需**支援大夜班**（Excel 呈現為：<u>**底線粗體 A**</u>）
+    * **Y 班**：**小夜班**，若有需要需**支援白班**（Excel 呈現為：<u>**底線粗體 E**</u>）
+    * **Z 班**：**大夜班**，若有需要需**支援白班**（Excel 呈現為：<u>**底線粗體 N**</u>）
     
     *(註：此預覽表格以代碼 W / X / Y / Z 方便核對；下方匯出之 Excel 會自動轉換為帶有字體樣式的 A / E / N)*
     """)
