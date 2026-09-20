@@ -143,9 +143,9 @@ with col_url:
     sheet_url = st.text_input("Google Sheet 網址 ：", value="")
 
 with col_opt:
-    group_option = st.selectbox("請選擇目前要處理的年資群組：", ["資深群組 (分頁1)", "中生代群組 (分頁2)", "新進群組 (分頁3)"])
+    group_option = st.selectbox("請選擇目前要處理的年資群組：", ["第一區 (分頁1)", "第二區 (分頁2)", "第三區 (分頁3)"])
 
-sheet_mapping = {"資深群組 (分頁1)": "工作表1", "中生代群組 (分頁2)": "工作表2", "新進群組 (分頁3)": "工作表3"}
+sheet_mapping = {"第一區 (分頁1)": "工作表1", "第二區 (分頁2)": "工作表2", "第三區 (分頁3)": "工作表3"}
 target_sheet_name = sheet_mapping[group_option]
 
 employees = {}
