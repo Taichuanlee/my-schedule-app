@@ -43,7 +43,7 @@ if ANNOUNCEMENT.strip() and not st.session_state["announcement_shown"]:
 # =========================================================================
 st.set_page_config(page_title="排班系統", page_icon="📅", layout="wide")
 
-st.title("📅 排班系統 (幫我加績效)")
+st.title("📅 排班系統 ")
 
 with st.chat_message("assistant", avatar="👨‍⚕️"):
     st.write("我是測試機器人")
@@ -63,10 +63,11 @@ st.sidebar.markdown("---")
 st.sidebar.header("🎲 特殊支援班別每月配額")
 st.sidebar.caption("📌 **特殊班定義**：\n- **W**：白班（需支援小夜）\n- **X**：白班（需支援大夜）\n- **Y**：小夜班（需支援白班）\n- **Z**：大夜班（需支援白班）")
 
-need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗斜體 A）", 0, 10, 2)
-need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗底線 A）", 0, 10, 2)
-need_Y = st.sidebar.slider("Y 班配額（小夜 ➜ 支援白班，匯出為粗底線 E）", 0, 10, 2)
-need_Z = st.sidebar.slider("Z 班配額（大夜 ➜ 支援白班，匯出為粗底線 N）", 0, 10, 2)
+# W 改為粗底線、預設 1；X 改為粗斜體、預設 1；Y、Z 維持不變（預設 2）
+need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗底線 A）", 0, 5, 1)
+need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗斜體 A）", 0, 5, 1)
+need_Y = st.sidebar.slider("Y 班配額（小夜 ➜ 支援白班，匯出為粗底線 E）", 0, 5, 2)
+need_Z = st.sidebar.slider("Z 班配額（大夜 ➜ 支援白班，匯出為粗底線 N）", 0, 5, 2)
 special_needs = {"W": need_W, "X": need_X, "Y": need_Y, "Z": need_Z}
 
 st.sidebar.markdown("---")
@@ -432,9 +433,10 @@ def run_scheduling_worker(employees, shift_needs, months, max_attempts, special_
         res_queue.put(("ERROR", str(e)))
 
 def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_version=False):
+    # W 改為粗底線 A，X 改為粗斜體 A，Y、Z 維持粗底線
     _SPECIAL_SHIFT_STYLE = {
-        "W": ("A", Font(name="Arial", italic=True, bold=True)), 
-        "X": ("A", Font(name="Arial", underline="single", bold=True)), 
+        "W": ("A", Font(name="Arial", underline="single", bold=True)), 
+        "X": ("A", Font(name="Arial", italic=True, bold=True)), 
         "Y": ("E", Font(name="Arial", underline="single", bold=True)), 
         "Z": ("N", Font(name="Arial", underline="single", bold=True))
     }
@@ -489,8 +491,8 @@ def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_v
     ws.cell(row=legend_start, column=1, value="【特殊班別與支援定義說明】").font = Font(name="Arial", bold=True)
 
     legend_items = [
-        ("W 班", "A", Font(name="Arial", italic=True, bold=True), "白班（若有需要需支援小夜班）"),
-        ("X 班", "A", Font(name="Arial", underline="single", bold=True), "白班（若有需要需支援大夜班）"),
+        ("W 班", "A", Font(name="Arial", underline="single", bold=True), "白班（若有需要需支援小夜班）"),
+        ("X 班", "A", Font(name="Arial", italic=True, bold=True), "白班（若有需要需支援大夜班）"),
         ("Y 班", "E", Font(name="Arial", underline="single", bold=True), "小夜班（若有需要需支援白班）"),
         ("Z 班", "N", Font(name="Arial", underline="single", bold=True), "大夜班（若有需要需支援白班）"),
     ]
@@ -553,8 +555,8 @@ if 'final_result' in st.session_state:
     st.markdown("### 📊 本次排班結果預覽")
     st.info("""
     **📋 特殊支援班別定義與樣式說明：**
-    * **W 班**：**白班**，若有需要需**支援小夜班**（Excel 呈現為：*斜體粗體 A*）
-    * **X 班**：**白班**，若有需要需**支援大夜班**（Excel 呈現為：**底線粗體 A**）
+    * **W 班**：**白班**，若有需要需**支援小夜班**（Excel 呈現為：**底線粗體 A**）
+    * **X 班**：**白班**，若有需要需**支援大夜班**（Excel 呈現為：*斜體粗體 A*）
     * **Y 班**：**小夜班**，若有需要需**支援白班**（Excel 呈現為：**底線粗體 E**）
     * **Z 班**：**大夜班**，若有需要需**支援白班**（Excel 呈現為：**底線粗體 N**）
     
