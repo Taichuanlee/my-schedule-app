@@ -46,8 +46,8 @@ st.set_page_config(page_title="排班系統", page_icon="📅", layout="wide")
 
 st.title("📅 排班系統 ")
 
-with st.chat_message("assistant", avatar="👨‍⚕️"):
-    st.write("我是測試機器人")
+#with st.chat_message("assistant", avatar="👨‍⚕️"):
+#    st.write("我是測試機器人")
 
 st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後，即可執行背景排班。")
 
@@ -56,7 +56,7 @@ st.markdown("側邊欄可調整參數；中間主畫面選擇群組並同步後�
 # =========================================================================
 st.sidebar.header("⚙️ 基礎班別每月需求人數")
 need_A = st.sidebar.number_input("A 班每月需求人數", min_value=0, value=18)
-need_E = st.sidebar.number_input("E 班每月需求人數", min_value=0, value=17)
+need_E = st.sidebar.number_input("E 班每月需求人數", min_value=0, value=16)
 need_N = st.sidebar.number_input("N 班每月需求人數", min_value=0, value=12)
 shift_needs = {"A": need_A, "E": need_E, "N": need_N}
 
@@ -65,8 +65,8 @@ st.sidebar.header("🎲 特殊支援班別每月配額")
 st.sidebar.caption("📌 **特殊班定義**：\n- **W**：白班（需支援小夜）\n- **X**：白班（需支援大夜）\n- **Y**：小夜班（需支援白班）\n- **Z**：大夜班（需支援白班）")
 
 # W 改為粗底線、預設 1；X 改為粗斜體、預設 1；Y、Z 維持不變（預設 2）
-need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗底線 A）", 0, 5, 1)
-need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗斜體 A）", 0, 5, 1)
+need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗底線 A）", 0, 5, 0)
+need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗斜體 A）", 0, 5, 0)
 need_Y = st.sidebar.slider("Y 班配額（小夜 ➜ 支援白班，匯出為粗底線 E）", 0, 5, 2)
 need_Z = st.sidebar.slider("Z 班配額（大夜 ➜ 支援白班，匯出為粗底線 N）", 0, 5, 2)
 special_needs = {"W": need_W, "X": need_X, "Y": need_Y, "Z": need_Z}
@@ -527,7 +527,7 @@ def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_v
 # 介面控制：執行排班與下載
 # =========================================================================
 st.markdown("---")
-st.header("🚀 第二步：執行智能排班")
+st.header("🚀 第二步：執行排班")
 
 if not employees:
     st.info("💡 請先在上方點擊「🔄 同步該群組最新資料」按鈕。")
