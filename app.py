@@ -197,21 +197,7 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
 
                 temp_employees = pref_df_cleaned.T.to_dict('list')
 
-                A_pref_counts = {i: 0 for i in range(len(months))}
-                for pref in temp_employees.values():
-                    for i, v in enumerate(pref):
-                        if v == "A":
-                            A_pref_counts[i] += 1
-
-                for emp, pref in temp_employees.items():
-                    if "A" not in pref:
-                        min_count = min(A_pref_counts.values())
-                        candidate_idxs = [i for i, cnt in A_pref_counts.items() if cnt == min_count]
-                        chosen_idx = random.choice(candidate_idxs)
-                        pref[chosen_idx] = "A"
-                        temp_employees[emp] = pref
-                        A_pref_counts[chosen_idx] += 1
-
+                # 保留原始填寫志願，不在同步時擅自插入 A
                 st.session_state['loaded_employees'] = temp_employees
                 st.session_state['invalid_records'] = invalid_pref_records
                 st.session_state['current_group'] = group_option
@@ -375,7 +361,14 @@ def apply_weighted_minimum_match(schedule_df, employees, months, shift_needs, ma
         attempt, swap_history = 0, set()
         while attempt < max_attempts:
             attempt += 1
-            ghosts = sorted([e for e, s in precise.items() if s < min_score], key=lambda x: precise[x])
+            # 動態降階保底判定：未依規定填寫 A 者，及格門檻自動扣除 1 個月配額（降 1.0 分）
+            ghosts = []
+            for e, s in precise.items():
+                user_threshold = min_score if ("A" in employees[e]) else max(1.5, min_score - 1.0)
+                if s < user_threshold:
+                    ghosts.append(e)
+            
+            ghosts = sorted(ghosts, key=lambda x: precise[x])
             if not ghosts:
                 success = True
                 break
