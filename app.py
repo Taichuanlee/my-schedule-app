@@ -64,7 +64,6 @@ st.sidebar.markdown("---")
 st.sidebar.header("🎲 特殊支援班別每月配額")
 st.sidebar.caption("📌 **特殊班定義**：\n- **W**：白班（需支援小夜）\n- **X**：白班（需支援大夜）\n- **Y**：小夜班（需支援白班）\n- **Z**：大夜班（需支援白班）")
 
-# W 改為粗底線、預設 0；X 改為粗斜體、預設 0；Y、Z 維持不變（預設 2）
 need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗底線 A）", 0, 5, 0)
 need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗斜體 A）", 0, 5, 0)
 need_Y = st.sidebar.slider("Y 班配額（小夜 ➜ 支援白班，匯出為粗底線 E）", 0, 5, 2)
@@ -377,7 +376,6 @@ def apply_weighted_minimum_match(schedule_df, employees, months, shift_needs, ma
         attempt, swap_history = 0, set()
         while attempt < max_attempts:
             attempt += 1
-            # 回歸全員一致保底門檻
             ghosts = sorted([e for e, s in precise.items() if s < min_score], key=lambda x: precise[x])
             if not ghosts:
                 success = True
@@ -398,6 +396,9 @@ def apply_weighted_minimum_match(schedule_df, employees, months, shift_needs, ma
             break
     return ensure_at_least_one_A(schedule_df, employees, months, shift_needs)
 
+# =========================================================================
+# 🎲 升級版：自動階梯式放寬特殊班上限，確保名額百分之百排滿
+# =========================================================================
 def assign_special_shifts(schedule_df, months, special_needs, max_special_per_emp, max_special_6a, employees, shift_needs):
     final_df = schedule_df.copy()
     special_shift_map = {"W": "A", "X": "A", "Y": "E", "Z": "N"}
@@ -406,6 +407,9 @@ def assign_special_shifts(schedule_df, months, special_needs, max_special_per_em
     sixA_people = [e for e in final_df.index if employees[e] == ['A'] * len(months)]
     shuffled_months = months[:]
     random.shuffle(shuffled_months)
+    
+    relax_records = []  # 記錄被放寬的清單
+
     for m in shuffled_months:
         for sp, base in special_shift_map.items():
             need = special_needs.get(sp, 0)
@@ -413,28 +417,49 @@ def assign_special_shifts(schedule_df, months, special_needs, max_special_per_em
                 continue
             for slot_idx in range(need):
                 candidates = final_df[final_df[m] == base].index.tolist()
-                primary = [e for e in candidates if e not in sixA_people and special_count[e] < max_special_per_emp and final_df.loc[e].tolist().count(base) > 1]
+                
+                current_normal_cap = max_special_per_emp
+                current_6a_cap = max_special_6a
                 chosen = None
-                if primary:
-                    primary_sorted = sorted(primary, key=lambda e: (-scores.get(e, 0), special_count[e], random.random()))
-                    chosen = primary_sorted[0]
-                else:
-                    backup = [e for e in candidates if e in sixA_people and special_count[e] < max_special_6a and final_df.loc[e].tolist().count(base) > 1]
+                
+                # 自動階梯式放寬迴圈：若當前上限無人可排，上限每次 +1 直到選出人選為止
+                while chosen is None and current_normal_cap <= len(months):
+                    # 1. 優先選一般同仁
+                    primary = [
+                        e for e in candidates 
+                        if e not in sixA_people 
+                        and special_count[e] < current_normal_cap 
+                        and final_df.loc[e].tolist().count(base) > 1
+                    ]
+                    if primary:
+                        primary_sorted = sorted(primary, key=lambda e: (-scores.get(e, 0), special_count[e], random.random()))
+                        chosen = primary_sorted[0]
+                        if current_normal_cap > max_special_per_emp:
+                            relax_records.append((chosen, m, sp, current_normal_cap))
+                        break
+                    
+                    # 2. 次要選 6A 備案
+                    backup = [
+                        e for e in candidates 
+                        if e in sixA_people 
+                        and special_count[e] < current_6a_cap 
+                        and final_df.loc[e].tolist().count(base) > 1
+                    ]
                     if backup:
                         chosen = random.choice(backup)
+                        if current_6a_cap > max_special_6a:
+                            relax_records.append((chosen, m, sp, current_6a_cap))
+                        break
+                    
+                    # 上限放寬 +1
+                    current_normal_cap += 1
+                    current_6a_cap += 1
+
                 if chosen:
                     final_df.at[chosen, m] = sp
                     special_count[chosen] += 1
-    return final_df
-
-def run_scheduling_worker(employees, shift_needs, months, max_attempts, special_needs, max_special_normal, max_special_6A, res_queue):
-    try:
-        initial_df = assign_shifts(employees, shift_needs, months)
-        match_df = apply_weighted_minimum_match(initial_df, employees, months, shift_needs, max_attempts)
-        final_df = assign_special_shifts(match_df, months, special_needs, max_special_normal, max_special_6A, employees, shift_needs)
-        res_queue.put(("SUCCESS", final_df))
-    except Exception as e:
-        res_queue.put(("ERROR", str(e)))
+                    
+    return final_df, relax_records
 
 def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_version=False):
     # W 改為粗底線 A，X 改為粗斜體 A，Y、Z 維持粗底線
@@ -504,16 +529,11 @@ def generate_excel_bytes(schedule_df, employees, months, shift_needs, is_check_v
     for idx, (code_name, disp_char, font_style, explanation) in enumerate(legend_items):
         row_num = legend_start + 1 + idx
         ws.cell(row=row_num, column=1, value=code_name).font = Font(name="Arial", bold=True)
-        
-        # 標記樣式示範格
         sample = ws.cell(row=row_num, column=2, value=disp_char)
         sample.font = font_style
         sample.alignment = Alignment(horizontal="center", vertical="center")
-        
-        # 支援文字說明
         ws.cell(row=row_num, column=3, value=explanation).font = Font(name="Arial", color="333333")
 
-    # 動態調整欄寬（避免圖例長標題干擾同仁姓名欄，並保持排班月份整齊）
     for c in range(1, ws.max_column + 1):
         col_letter = get_column_letter(c)
         if col_letter == "A":
@@ -538,25 +558,35 @@ else:
     st.write(f"📊 目前準備排班之群組：**{st.session_state.get('current_group', '未指定')}** ｜ 月份區間：**{season_option}**")
     
     if st.button("🔥 開始一鍵排班", type="primary"):
-        # 💡 先清空上一次的結果，讓舊表格與下載按鈕瞬間消失
         if 'final_result' in st.session_state:
             del st.session_state['final_result']
+        if 'relax_records' in st.session_state:
+            del st.session_state['relax_records']
             
         with st.spinner("🧠 演算法正在隨機保底、分攤特殊班... 請稍候..."):
             try:
                 initial_df = assign_shifts(employees, shift_needs, months)
                 match_df = apply_weighted_minimum_match(initial_df, employees, months, shift_needs, max_attempts)
-                final_df = assign_special_shifts(match_df, months, special_needs, max_special_normal, max_special_6A, employees, shift_needs)
+                final_df, relax_records = assign_special_shifts(match_df, months, special_needs, max_special_normal, max_special_6A, employees, shift_needs)
                 
-                # 計算完成後再寫入新結果
                 st.session_state['final_result'] = final_df
-                st.success("🎉 排班順利完成！結果已生成。")
+                st.session_state['relax_records'] = relax_records
+                st.success("🎉 排班順利完成！所有特殊班配額已全數排滿。")
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ 排班失敗: {e}")
 
 if 'final_result' in st.session_state:
     st.markdown("### 📊 本次排班結果預覽")
+    
+    relax_records = st.session_state.get('relax_records', [])
+    if relax_records:
+        st.warning("⚠️ **部分月份因符合條件人數不足，系統已自動放寬個人上限以確保配額排滿：**")
+        for emp, m, sp, new_cap in relax_records:
+            st.caption(f"- **{emp}** 在 **{m} 月** 承擔第 {new_cap} 次特殊班（{sp} 班）")
+    else:
+        st.success("✅ 所有特殊班配額皆在您設定的個人上限內完美分配完畢！")
+        
     st.info("""
     **📋 特殊支援班別定義與樣式說明：**
     * **W 班**：**白班**，若有需要需**支援小夜班**（Excel 呈現為：**底線粗體 A**）
