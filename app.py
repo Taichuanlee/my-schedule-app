@@ -64,7 +64,7 @@ st.sidebar.markdown("---")
 st.sidebar.header("🎲 特殊支援班別每月配額")
 st.sidebar.caption("📌 **特殊班定義**：\n- **W**：白班（需支援小夜）\n- **X**：白班（需支援大夜）\n- **Y**：小夜班（需支援白班）\n- **Z**：大夜班（需支援白班）")
 
-# W 改為粗底線、預設 1；X 改為粗斜體、預設 1；Y、Z 維持不變（預設 2）
+# W 改為粗底線、預設 0；X 改為粗斜體、預設 0；Y、Z 維持不變（預設 2）
 need_W = st.sidebar.slider("W 班配額（白班 ➜ 支援小夜，匯出為粗底線 A）", 0, 5, 0)
 need_X = st.sidebar.slider("X 班配額（白班 ➜ 支援大夜，匯出為粗斜體 A）", 0, 5, 0)
 need_Y = st.sidebar.slider("Y 班配額（小夜 ➜ 支援白班，匯出為粗底線 E）", 0, 5, 2)
@@ -73,7 +73,7 @@ special_needs = {"W": need_W, "X": need_X, "Y": need_Y, "Z": need_Z}
 
 st.sidebar.markdown("---")
 st.sidebar.header("🛡️ 個人特殊班上限與保底設定")
-max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）", 1, 5, 2)
+max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）", 1, 5, 1)
 max_special_6A = st.sidebar.slider("偏好 6A 員工特殊班上限（每人）", 0, 5, 1)
 max_attempts = st.sidebar.number_input("五門檻保底最大嘗試次數", min_value=100, value=1000, step=100)
 
@@ -197,7 +197,23 @@ if st.button("🔄 同步該群組最新資料", type="secondary"):
 
                 temp_employees = pref_df_cleaned.T.to_dict('list')
 
-                # 保留原始填寫志願，不在同步時擅自插入 A
+                # 計算各月填 A 人數
+                A_pref_counts = {i: 0 for i in range(len(months))}
+                for pref in temp_employees.values():
+                    for i, v in enumerate(pref):
+                        if v == "A":
+                            A_pref_counts[i] += 1
+
+                # 若完全沒選 A，由系統自動在最缺 A 的月份指派 1 個 A 志願（全員平權模式）
+                for emp, pref in temp_employees.items():
+                    if "A" not in pref:
+                        min_count = min(A_pref_counts.values())
+                        candidate_idxs = [i for i, cnt in A_pref_counts.items() if cnt == min_count]
+                        chosen_idx = random.choice(candidate_idxs)
+                        pref[chosen_idx] = "A"
+                        temp_employees[emp] = pref
+                        A_pref_counts[chosen_idx] += 1
+
                 st.session_state['loaded_employees'] = temp_employees
                 st.session_state['invalid_records'] = invalid_pref_records
                 st.session_state['current_group'] = group_option
@@ -361,14 +377,8 @@ def apply_weighted_minimum_match(schedule_df, employees, months, shift_needs, ma
         attempt, swap_history = 0, set()
         while attempt < max_attempts:
             attempt += 1
-            # 動態降階保底判定：未依規定填寫 A 者，及格門檻自動扣除 1 個月配額（降 1.0 分）
-            ghosts = []
-            for e, s in precise.items():
-                user_threshold = min_score if ("A" in employees[e]) else max(1.5, min_score - 1.0)
-                if s < user_threshold:
-                    ghosts.append(e)
-            
-            ghosts = sorted(ghosts, key=lambda x: precise[x])
+            # 回歸全員一致保底門檻
+            ghosts = sorted([e for e, s in precise.items() if s < min_score], key=lambda x: precise[x])
             if not ghosts:
                 success = True
                 break
