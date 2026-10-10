@@ -72,7 +72,7 @@ special_needs = {"W": need_W, "X": need_X, "Y": need_Y, "Z": need_Z}
 
 st.sidebar.markdown("---")
 st.sidebar.header("🛡️ 個人特殊班上限與保底設定")
-max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）", 1, 5, 1)
+max_special_normal = st.sidebar.slider("一般員工特殊班上限（每人）", 1, 5, 2)
 max_special_6A = st.sidebar.slider("偏好 6A 員工特殊班上限（每人）", 0, 5, 1)
 max_attempts = st.sidebar.number_input("五門檻保底最大嘗試次數", min_value=100, value=1000, step=100)
 
